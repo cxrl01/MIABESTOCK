@@ -44,6 +44,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/paiements/{paiement}/recu', [VenteController::class, 'exportRecu'])->name('paiements.recu');
     Route::resource('ventes', VenteController::class);
 
+    Route::post('/livraisons/{livraison}/paiement', [LivraisonController::class, 'recordPayment'])
+    ->name('livraisons.paiement.store');
+
+
     Route::resource('fournisseurs', FournisseurController::class);
     Route::resource('livraisons', LivraisonController::class);
 

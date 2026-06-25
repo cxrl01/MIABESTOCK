@@ -5,9 +5,11 @@ namespace Database\Seeders;
 use App\Models\Categorie;
 use App\Models\Client;
 use App\Models\Commande;
+use App\Models\Depense;
 use App\Models\Fournisseur;
 use App\Models\LigneCommande;
 use App\Models\MouvementStock;
+use App\Models\Paiement;
 use App\Models\Produit;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -16,49 +18,66 @@ class DemoDataSeeder extends Seeder
 {
     public function run(): void
     {
-        // On récupère le premier Gérant trouvé (ta boutique)
         $gerant = User::where('role', 'gerant')->first();
 
         if (!$gerant) {
-            $this->command->error('Aucun Gérant trouvé. Crée d\'abord un compte via /register.');
+            $this->command->error("Aucun Gérant trouvé. Crée d'abord un compte via /register.");
             return;
         }
 
         $boutiqueId = $gerant->boutique_id;
 
-        // ===== CATÉGORIES =====
+        /*
+        |--------------------------------------------------------------------------
+        | CATÉGORIES
+        |--------------------------------------------------------------------------
+        */
         $categories = [
             'Boissons' => 'Sodas, jus, eau minérale',
-            'Alimentation' => 'Produits alimentaires courants',
-            'Hygiène' => 'Produits de soin et hygiène',
-            'Électronique' => 'Petits appareils électroniques',
+            'Alimentation' => 'Produits alimentaires',
+            'Hygiène' => 'Produits d’hygiène',
+            'Électronique' => 'Appareils électroniques',
         ];
 
         $categorieIds = [];
+
         foreach ($categories as $nom => $description) {
             $cat = Categorie::create([
                 'boutique_id' => $boutiqueId,
                 'nom' => $nom,
                 'description' => $description,
             ]);
+
             $categorieIds[$nom] = $cat->id;
         }
 
-        // ===== PRODUITS =====
+        /*
+        |--------------------------------------------------------------------------
+        | PRODUITS
+        |--------------------------------------------------------------------------
+        */
         $produits = [
             ['code' => 'BOI-001', 'nom' => 'Coca-Cola 50cl', 'cat' => 'Boissons', 'achat' => 250, 'vente' => 400, 'stock' => 120, 'seuil' => 20],
             ['code' => 'BOI-002', 'nom' => 'Eau minérale 1.5L', 'cat' => 'Boissons', 'achat' => 200, 'vente' => 350, 'stock' => 80, 'seuil' => 15],
             ['code' => 'BOI-003', 'nom' => 'Jus Tampico 1L', 'cat' => 'Boissons', 'achat' => 500, 'vente' => 750, 'stock' => 5, 'seuil' => 10],
+
             ['code' => 'ALI-001', 'nom' => 'Riz parfumé 5kg', 'cat' => 'Alimentation', 'achat' => 3500, 'vente' => 4500, 'stock' => 40, 'seuil' => 10],
             ['code' => 'ALI-002', 'nom' => 'Huile végétale 1L', 'cat' => 'Alimentation', 'achat' => 1200, 'vente' => 1600, 'stock' => 8, 'seuil' => 10],
             ['code' => 'ALI-003', 'nom' => 'Lait en poudre Bambino', 'cat' => 'Alimentation', 'achat' => 2800, 'vente' => 3500, 'stock' => 25, 'seuil' => 5],
+
             ['code' => 'HYG-001', 'nom' => 'Savon Lux', 'cat' => 'Hygiène', 'achat' => 300, 'vente' => 500, 'stock' => 60, 'seuil' => 15],
             ['code' => 'HYG-002', 'nom' => 'Dentifrice Signal', 'cat' => 'Hygiène', 'achat' => 600, 'vente' => 900, 'stock' => 3, 'seuil' => 10],
+
             ['code' => 'ELE-001', 'nom' => 'Lampe torche LED', 'cat' => 'Électronique', 'achat' => 1500, 'vente' => 2500, 'stock' => 18, 'seuil' => 5],
             ['code' => 'ELE-002', 'nom' => 'Chargeur téléphone universel', 'cat' => 'Électronique', 'achat' => 1000, 'vente' => 1800, 'stock' => 22, 'seuil' => 8],
+
+            ['code' => 'ELE-003', 'nom' => 'Samsung Galaxy S24 Ultra', 'cat' => 'Électronique', 'achat' => 850000, 'vente' => 1150000, 'stock' => 5, 'seuil' => 1],
+            ['code' => 'ELE-004', 'nom' => 'iPhone 15 Pro Max', 'cat' => 'Électronique', 'achat' => 900000, 'vente' => 1250000, 'stock' => 4, 'seuil' => 1],
+            ['code' => 'ELE-005', 'nom' => 'PlayStation 5', 'cat' => 'Électronique', 'achat' => 450000, 'vente' => 650000, 'stock' => 3, 'seuil' => 1],
         ];
 
         $produitIds = [];
+
         foreach ($produits as $p) {
             $produit = Produit::create([
                 'boutique_id' => $boutiqueId,
@@ -70,134 +89,216 @@ class DemoDataSeeder extends Seeder
                 'quantite_stock' => $p['stock'],
                 'seuil_alerte' => $p['seuil'],
             ]);
+
             $produitIds[] = $produit->id;
         }
 
-        // ===== CLIENTS =====
-        $clients = [
-            ['nom' => 'Kofi Mensah', 'tel' => '90112233', 'email' => 'kofi.mensah@example.com'],
-            ['nom' => 'Akossiwa Lawson', 'tel' => '91223344', 'email' => 'akossiwa.lawson@example.com'],
-            ['nom' => 'Yawo Dossou', 'tel' => '92334455', 'email' => null],
-            ['nom' => 'Esther Agbeko', 'tel' => '93445566', 'email' => 'esther.agbeko@example.com'],
-        ];
-
+        /*
+        |--------------------------------------------------------------------------
+        | CLIENTS
+        |--------------------------------------------------------------------------
+        */
         $clientIds = [];
-        foreach ($clients as $c) {
+
+        foreach ([
+            ['nom' => 'Kofi Mensah', 'tel' => '90112233'],
+            ['nom' => 'Akossiwa Lawson', 'tel' => '91223344'],
+            ['nom' => 'Yawo Dossou', 'tel' => '92334455'],
+            ['nom' => 'Esther Agbeko', 'tel' => '93445566'],
+        ] as $c) {
+
             $client = Client::create([
                 'boutique_id' => $boutiqueId,
                 'nom_complet' => $c['nom'],
                 'telephone' => $c['tel'],
-                'email' => $c['email'],
                 'adresse' => 'Lomé, Togo',
                 'solde_dette' => 0,
             ]);
+
             $clientIds[] = $client->id;
         }
 
-        // ===== FOURNISSEURS =====
-        $fournisseurs = [
-            ['nom' => 'Grossiste Togo SARL', 'tel' => '70112233', 'email' => 'contact@grossistetogo.tg'],
-            ['nom' => 'Import Express CI', 'tel' => '71223344', 'email' => 'ventes@importexpress.ci'],
-            ['nom' => 'Distributeur Lomé Plus', 'tel' => '72334455', 'email' => null],
-        ];
-
+        /*
+        |--------------------------------------------------------------------------
+        | FOURNISSEURS
+        |--------------------------------------------------------------------------
+        */
         $fournisseurIds = [];
-        foreach ($fournisseurs as $f) {
+
+        foreach ([
+            'Grossiste Togo SARL',
+            'Import Express CI',
+            'Distributeur Lomé Plus',
+        ] as $nom) {
+
             $fournisseur = Fournisseur::create([
                 'boutique_id' => $boutiqueId,
-                'nom' => $f['nom'],
-                'telephone' => $f['tel'],
-                'email' => $f['email'],
-                'adresse' => 'Zone industrielle, Lomé',
+                'nom' => $nom,
+                'telephone' => '70000000',
+                'adresse' => 'Zone industrielle',
                 'solde_dette' => 0,
             ]);
+
             $fournisseurIds[] = $fournisseur->id;
         }
 
-        // ===== LIVRAISONS (avec mise à jour du stock) =====
-        $livraison1 = Commande::create([
+        /*
+        |--------------------------------------------------------------------------
+        | LIVRAISON
+        |--------------------------------------------------------------------------
+        */
+        $livraison = Commande::create([
             'boutique_id' => $boutiqueId,
             'fournisseur_id' => $fournisseurIds[0],
             'user_id' => $gerant->id,
-            'numero' => 'LIV-' . now()->format('Ymd') . '-00001',
+            'numero' => 'LIV-' . now()->format('Ymd') . '-001',
             'type' => 'livraison',
-            'total_ttc' => 0,
+            'total_ttc' => 18500,
             'statut' => 'soldee',
         ]);
 
-        $totalLivraison1 = 0;
-        $lignesLivraison1 = [
-            ['produit_id' => $produitIds[0], 'qte' => 50, 'prix' => 250],
-            ['produit_id' => $produitIds[1], 'qte' => 30, 'prix' => 200],
-        ];
+        LigneCommande::create([
+            'commande_id' => $livraison->id,
+            'produit_id' => $produitIds[0],
+            'quantite' => 50,
+            'prix_unitaire' => 250,
+            'sous_total' => 12500,
+        ]);
 
-        foreach ($lignesLivraison1 as $ligne) {
-            $sousTotal = $ligne['qte'] * $ligne['prix'];
-            $totalLivraison1 += $sousTotal;
+        LigneCommande::create([
+            'commande_id' => $livraison->id,
+            'produit_id' => $produitIds[1],
+            'quantite' => 30,
+            'prix_unitaire' => 200,
+            'sous_total' => 6000,
+        ]);
 
-            LigneCommande::create([
-                'commande_id' => $livraison1->id,
-                'produit_id' => $ligne['produit_id'],
-                'quantite' => $ligne['qte'],
-                'prix_unitaire' => $ligne['prix'],
-                'sous_total' => $sousTotal,
-            ]);
-
-            MouvementStock::create([
-                'produit_id' => $ligne['produit_id'],
-                'type' => 'entree',
-                'quantite' => $ligne['qte'],
-                'motif' => 'Livraison ' . $livraison1->numero,
-                'date' => now()->subDays(5),
-            ]);
-        }
-
-        $livraison1->update(['total_ttc' => $totalLivraison1]);
-
-        $livraison2 = Commande::create([
+        /*
+        |--------------------------------------------------------------------------
+        | VENTE 1 SOLDÉE
+        |--------------------------------------------------------------------------
+        */
+        $vente1 = Commande::create([
             'boutique_id' => $boutiqueId,
-            'fournisseur_id' => $fournisseurIds[1],
+            'client_id' => $clientIds[0],
             'user_id' => $gerant->id,
-            'numero' => 'LIV-' . now()->format('Ymd') . '-00002',
-            'type' => 'livraison',
-            'total_ttc' => 0,
+            'numero' => 'VEN-' . now()->format('Ymd') . '-001',
+            'type' => 'vente',
+            'total_ttc' => 800,
             'statut' => 'soldee',
         ]);
 
-        $totalLivraison2 = 0;
-        $lignesLivraison2 = [
-            ['produit_id' => $produitIds[3], 'qte' => 20, 'prix' => 3500],
-            ['produit_id' => $produitIds[8], 'qte' => 10, 'prix' => 1500],
-        ];
+        LigneCommande::create([
+            'commande_id' => $vente1->id,
+            'produit_id' => $produitIds[0],
+            'quantite' => 2,
+            'prix_unitaire' => 400,
+            'sous_total' => 800,
+        ]);
 
-        foreach ($lignesLivraison2 as $ligne) {
-            $sousTotal = $ligne['qte'] * $ligne['prix'];
-            $totalLivraison2 += $sousTotal;
+        Paiement::create([
+            'commande_id' => $vente1->id,
+            'numero_facture' => 'FAC-00001',
+            'montant' => 800,
+            'mode' => 'especes',
+        ]);
 
-            LigneCommande::create([
-                'commande_id' => $livraison2->id,
-                'produit_id' => $ligne['produit_id'],
-                'quantite' => $ligne['qte'],
-                'prix_unitaire' => $ligne['prix'],
-                'sous_total' => $sousTotal,
-            ]);
+        /*
+        |--------------------------------------------------------------------------
+        | VENTE 2 PARTIELLE
+        |--------------------------------------------------------------------------
+        */
+        $vente2 = Commande::create([
+            'boutique_id' => $boutiqueId,
+            'client_id' => $clientIds[1],
+            'user_id' => $gerant->id,
+            'numero' => 'VEN-' . now()->format('Ymd') . '-002',
+            'type' => 'vente',
+            'total_ttc' => 4500,
+            'statut' => 'en_cours',
+        ]);
 
-            MouvementStock::create([
-                'produit_id' => $ligne['produit_id'],
-                'type' => 'entree',
-                'quantite' => $ligne['qte'],
-                'motif' => 'Livraison ' . $livraison2->numero,
-                'date' => now()->subDays(2),
-            ]);
-        }
+        LigneCommande::create([
+            'commande_id' => $vente2->id,
+            'produit_id' => $produitIds[3],
+            'quantite' => 1,
+            'prix_unitaire' => 4500,
+            'sous_total' => 4500,
+        ]);
 
-        $livraison2->update(['total_ttc' => $totalLivraison2]);
+        Paiement::create([
+            'commande_id' => $vente2->id,
+            'numero_facture' => 'FAC-00002',
+            'montant' => 2000,
+            'mode' => 'mobile_money',
+        ]);
+
+        Client::find($clientIds[1])->update([
+            'solde_dette' => 2500,
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | MOUVEMENTS DE STOCK
+        |--------------------------------------------------------------------------
+        */
+        MouvementStock::create([
+            'produit_id' => $produitIds[0],
+            'type' => 'sortie',
+            'quantite' => 2,
+            'motif' => 'Vente',
+            'date' => now(),
+        ]);
+
+        MouvementStock::create([
+            'produit_id' => $produitIds[3],
+            'type' => 'sortie',
+            'quantite' => 1,
+            'motif' => 'Vente',
+            'date' => now(),
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | DÉPENSES
+        |--------------------------------------------------------------------------
+        */
+        Depense::create([
+            'boutique_id' => $boutiqueId,
+            'user_id' => $gerant->id,
+            'libelle' => 'Paiement loyer',
+            'montant' => 150000,
+            'categorie' => 'Loyer',
+            'date' => now()->subDays(15),
+        ]);
+
+        Depense::create([
+            'boutique_id' => $boutiqueId,
+            'user_id' => $gerant->id,
+            'libelle' => 'Facture électricité',
+            'montant' => 35000,
+            'categorie' => 'Charges',
+            'date' => now()->subDays(10),
+        ]);
+
+        Depense::create([
+            'boutique_id' => $boutiqueId,
+            'user_id' => $gerant->id,
+            'libelle' => 'Connexion Internet',
+            'montant' => 25000,
+            'categorie' => 'Internet',
+            'date' => now()->subDays(5),
+        ]);
+
+        Depense::create([
+            'boutique_id' => $boutiqueId,
+            'user_id' => $gerant->id,
+            'libelle' => 'Achat fournitures',
+            'montant' => 18000,
+            'categorie' => 'Bureau',
+            'date' => now()->subDays(2),
+        ]);
 
         $this->command->info('Données de démonstration insérées avec succès !');
-        $this->command->info('- 4 catégories');
-        $this->command->info('- 10 produits');
-        $this->command->info('- 4 clients');
-        $this->command->info('- 3 fournisseurs');
-        $this->command->info('- 2 livraisons');
     }
 }
