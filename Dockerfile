@@ -28,6 +28,8 @@ RUN php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache
 
-EXPOSE 10000
+# Exposer le port fourni par Render
+EXPOSE $PORT
 
-CMD php artisan serve --host=0.0.0.0 --port=10000
+# Lancer Laravel sur le port Render
+CMD php artisan serve --host=0.0.0.0 --port=$PORT
