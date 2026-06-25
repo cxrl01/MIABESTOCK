@@ -6,6 +6,7 @@ use App\Models\Commande;
 use App\Models\Fournisseur;
 use App\Models\LigneCommande;
 use App\Models\MouvementStock;
+use App\Models\Paiement;
 use App\Models\Produit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +20,7 @@ class LivraisonController extends Controller
     {
         $livraisons = Commande::where('boutique_id', auth()->user()->boutique_id)
             ->where('type', 'livraison')
-            ->with('fournisseur')
+            ->with('fournisseur', 'paiements')
             ->latest()
             ->get();
 
@@ -48,13 +49,17 @@ class LivraisonController extends Controller
             'produits.*.id' => ['required', 'exists:produits,id'],
             'produits.*.quantite' => ['required', 'integer', 'min:1'],
             'produits.*.prix_unitaire' => ['required', 'numeric', 'min:0'],
+            'montant_paye' => ['required', 'numeric', 'min:0'],
         ]);
 
-        DB::transaction(function () use ($request) {
+        $livraison = DB::transaction(function () use ($request) {
             $total = 0;
             foreach ($request->produits as $ligne) {
                 $total += $ligne['quantite'] * $ligne['prix_unitaire'];
             }
+
+            $montantPaye = min($request->montant_paye, $total);
+            $statut = $montantPaye >= $total ? 'soldee' : 'en_cours';
 
             $livraison = Commande::create([
                 'boutique_id' => auth()->user()->boutique_id,
@@ -63,7 +68,7 @@ class LivraisonController extends Controller
                 'numero' => 'LIV-' . now()->format('Ymd') . '-' . str_pad(Commande::count() + 1, 5, '0', STR_PAD_LEFT),
                 'type' => 'livraison',
                 'total_ttc' => $total,
-                'statut' => 'soldee',
+                'statut' => $statut,
             ]);
 
             foreach ($request->produits as $ligne) {
@@ -77,10 +82,8 @@ class LivraisonController extends Controller
                     'sous_total' => $ligne['quantite'] * $ligne['prix_unitaire'],
                 ]);
 
-                // Augmente le stock du produit
                 $produit->increment('quantite_stock', $ligne['quantite']);
 
-                // Trace le mouvement de stock
                 MouvementStock::create([
                     'produit_id' => $produit->id,
                     'type' => 'entree',
@@ -89,9 +92,27 @@ class LivraisonController extends Controller
                     'date' => now(),
                 ]);
             }
+
+            // Enregistrer le paiement initial (total ou partiel)
+            if ($montantPaye > 0) {
+                Paiement::create([
+                    'commande_id' => $livraison->id,
+                    'numero_facture' => $livraison->numero . '-P01',
+                    'montant' => $montantPaye,
+                    'mode' => 'especes',
+                ]);
+            }
+
+            // Mettre à jour la dette du fournisseur si paiement partiel
+            if ($montantPaye < $total) {
+                $fournisseur = Fournisseur::find($request->fournisseur_id);
+                $fournisseur->increment('solde_dette', $total - $montantPaye);
+            }
+
+            return $livraison;
         });
 
-        return redirect()->route('livraisons.index')->with('success', 'Livraison enregistrée avec succès.');
+        return redirect()->route('livraisons.show', $livraison)->with('success', 'Livraison enregistrée avec succès.');
     }
 
     /**
@@ -102,13 +123,48 @@ class LivraisonController extends Controller
         abort_if($livraison->boutique_id !== auth()->user()->boutique_id, 403);
         abort_if($livraison->type !== 'livraison', 404);
 
-        $livraison->load('fournisseur', 'lignes.produit');
+        $livraison->load('fournisseur', 'lignes.produit', 'paiements');
+        $soldeRestant = $livraison->total_ttc - $livraison->paiements->sum('montant');
 
-        return view('livraisons.show', compact('livraison'));
+        return view('livraisons.show', compact('livraison', 'soldeRestant'));
     }
 
     /**
-     * Supprime une livraison (et retire le stock ajouté).
+     * Enregistre un paiement complémentaire envers le fournisseur.
+     */
+    public function recordPayment(Request $request, Commande $livraison)
+    {
+        abort_if($livraison->boutique_id !== auth()->user()->boutique_id, 403);
+        abort_if($livraison->type !== 'livraison', 404);
+
+        $soldeRestant = $livraison->total_ttc - $livraison->paiements->sum('montant');
+
+        $request->validate([
+            'montant' => ['required', 'numeric', 'min:0.01', 'max:' . $soldeRestant],
+        ]);
+
+        DB::transaction(function () use ($request, $livraison, $soldeRestant) {
+            $numeroFacture = $livraison->numero . '-P' . str_pad($livraison->paiements()->count() + 1, 2, '0', STR_PAD_LEFT);
+
+            Paiement::create([
+                'commande_id' => $livraison->id,
+                'numero_facture' => $numeroFacture,
+                'montant' => $request->montant,
+                'mode' => 'especes',
+            ]);
+
+            if ($request->montant >= $soldeRestant) {
+                $livraison->update(['statut' => 'soldee']);
+            }
+
+            $livraison->fournisseur->decrement('solde_dette', $request->montant);
+        });
+
+        return redirect()->route('livraisons.show', $livraison)->with('success', 'Paiement enregistré avec succès.');
+    }
+
+    /**
+     * Supprime une livraison (et retire le stock ajouté + ajuste la dette).
      */
     public function destroy(Commande $livraison)
     {
@@ -126,6 +182,12 @@ class LivraisonController extends Controller
                     'motif' => 'Annulation livraison ' . $livraison->numero,
                     'date' => now(),
                 ]);
+            }
+
+            // Si une dette fournisseur était liée à cette livraison, on l'annule
+            $soldeRestant = $livraison->total_ttc - $livraison->paiements->sum('montant');
+            if ($soldeRestant > 0) {
+                $livraison->fournisseur->decrement('solde_dette', $soldeRestant);
             }
 
             $livraison->lignes()->delete();

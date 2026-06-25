@@ -7,6 +7,13 @@
         </div>
     </div>
 
+    @error('produits')
+        <div class="alert alert-error">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            {{ $message }}
+        </div>
+    @enderror
+
     <div class="form-card" style="max-width: 800px;">
         <form method="POST" action="{{ route('livraisons.store') }}" id="livraisonForm">
             @csrf
@@ -38,6 +45,16 @@
                 Total : <span id="totalGeneral">0</span> F
             </div>
 
+            <hr style="border: none; border-top: 1px solid var(--border); margin: 20px 0;">
+
+            <div class="form-group">
+                <label for="montant_paye" class="form-label">Montant payé au fournisseur</label>
+                <input type="number" id="montant_paye" name="montant_paye" class="form-input" min="0" step="1" value="0" required>
+                <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 6px;">
+                    Reste à payer : <span id="resteAffiche">0 F</span>
+                </p>
+            </div>
+
             <div class="form-actions">
                 <button type="submit" class="btn-action">Enregistrer la livraison</button>
                 <a href="{{ route('livraisons.index') }}" class="btn-secondary">Annuler</a>
@@ -45,7 +62,6 @@
         </form>
     </div>
 
-    {{-- Données des produits, utilisées par le script --}}
     <script>
         const produitsDisponibles = @json($produits->map(fn($p) => ['id' => $p->id, 'nom' => $p->nom, 'prix' => $p->prix_achat]));
     </script>
@@ -54,6 +70,8 @@
         let ligneIndex = 0;
         const container = document.getElementById('lignesContainer');
         const totalGeneralEl = document.getElementById('totalGeneral');
+        const montantPayeInput = document.getElementById('montant_paye');
+        const resteAffiche = document.getElementById('resteAffiche');
 
         function ajouterLigne() {
             const index = ligneIndex++;
@@ -128,11 +146,21 @@
                 total += qte * prix;
             });
             totalGeneralEl.textContent = total.toLocaleString('fr-FR');
+            montantPayeInput.value = total;
+            calculerReste();
         }
+
+        function calculerReste() {
+            const total = parseFloat(totalGeneralEl.textContent.replace(/\s/g, '').replace(',', '.')) || 0;
+            const paye = parseFloat(montantPayeInput.value) || 0;
+            const reste = Math.max(total - paye, 0);
+            resteAffiche.textContent = reste.toLocaleString('fr-FR') + ' F';
+        }
+
+        montantPayeInput.addEventListener('input', calculerReste);
 
         document.getElementById('ajouterLigneBtn').addEventListener('click', ajouterLigne);
 
-        // Ajoute une première ligne au chargement
         ajouterLigne();
     </script>
 

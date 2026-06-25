@@ -50,6 +50,33 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        $user = Auth::user();
+
+        // Vérifier que le compte est actif
+        if (!$user->est_actif) {
+            Auth::logout();
+
+            throw ValidationException::withMessages([
+                'email' => 'Votre compte a été désactivé. Contactez votre Gérant.',
+            ]);
+        }
+
+        // Vérifier que la boutique est active (sauf pour le Super Admin, qui n'a pas de boutique)
+        if (!$user->estSuperAdmin() && $user->boutique?->statut !== 'active') {
+            $statutBoutique = $user->boutique?->statut;
+            Auth::logout();
+
+            $message = match ($statutBoutique) {
+                'suspendue' => 'Cette boutique a été suspendue par l\'administration. Veuillez contacter le support.',
+                'supprimee' => 'Cette boutique n\'existe plus.',
+                default => 'Impossible de se connecter pour le moment.',
+            };
+
+            throw ValidationException::withMessages([
+                'email' => $message,
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

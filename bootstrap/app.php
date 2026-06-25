@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\CheckBoutiqueActive;
 use App\Http\Middleware\EnsureUserIsGerant;
 use App\Http\Middleware\EnsureUserIsSuperAdmin;
 use Illuminate\Foundation\Application;
@@ -18,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'gerant' => EnsureUserIsGerant::class,
             'super_admin' => EnsureUserIsSuperAdmin::class,
         ]);
+
+        $middleware->appendToGroup('web', CheckBoutiqueActive::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

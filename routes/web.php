@@ -56,6 +56,8 @@ Route::middleware(['auth', 'super_admin'])->prefix('admin')->name('admin.')->gro
     Route::patch('/boutiques/{boutique}/suspend', [BoutiqueController::class, 'suspend'])->name('boutiques.suspend');
     Route::patch('/boutiques/{boutique}/reactivate', [BoutiqueController::class, 'reactivate'])->name('boutiques.reactivate');
     Route::delete('/boutiques/{boutique}', [BoutiqueController::class, 'destroy'])->name('boutiques.destroy');
+    Route::get('/journal', [BoutiqueController::class, 'journal'])->name('journal.index');
+    Route::get('/statistiques', [BoutiqueController::class, 'statistiques'])->name('statistiques.index');
 });
 
 require __DIR__.'/auth.php';
