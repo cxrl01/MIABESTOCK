@@ -28,6 +28,9 @@ RUN php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache
 
+# Appliquer les migrations automatiquement
+RUN php artisan migrate --force
+
 # Exposer le port fourni par Render
 EXPOSE $PORT
 
