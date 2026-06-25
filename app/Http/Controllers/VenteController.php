@@ -32,6 +32,8 @@ class VenteController extends Controller
      */
     public function create()
     {
+        abort_if(auth()->user()->estGestionnaire(), 403);
+
         $clients = Client::where('boutique_id', auth()->user()->boutique_id)->get();
         $produits = Produit::where('boutique_id', auth()->user()->boutique_id)
             ->where('quantite_stock', '>', 0)
@@ -45,6 +47,8 @@ class VenteController extends Controller
      */
     public function store(Request $request)
     {
+        abort_if(auth()->user()->estGestionnaire(), 403);
+
         $request->validate([
             'client_id' => ['nullable', 'exists:clients,id'],
             'produits' => ['required', 'array', 'min:1'],
@@ -155,6 +159,7 @@ class VenteController extends Controller
      */
     public function recordPayment(Request $request, Commande $vente)
     {
+        abort_if(auth()->user()->estGestionnaire(), 403);
         abort_if($vente->boutique_id !== auth()->user()->boutique_id, 403);
 
         $soldeRestant = $vente->total_ttc - $vente->paiements->sum('montant');
@@ -213,6 +218,7 @@ class VenteController extends Controller
      */
     public function cancel(Commande $vente)
     {
+        abort_if(!auth()->user()->estGerant(), 403);
         abort_if($vente->boutique_id !== auth()->user()->boutique_id, 403);
         abort_if($vente->type !== 'vente', 404);
 

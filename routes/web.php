@@ -28,7 +28,6 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('categories', CategorieController::class);
     Route::resource('produits', ProduitController::class);
-    Route::resource('clients', ClientController::class);
 
     Route::middleware('gerant')->group(function () {
         Route::patch('/equipe/{equipe}/toggle-status', [EquipeController::class, 'toggleStatus'])->name('equipe.toggle-status');
@@ -38,20 +37,24 @@ Route::middleware('auth')->group(function () {
         Route::patch('/administration', [BoutiqueSettingsController::class, 'update'])->name('administration.update');
     });
 
+    // Clients : Gérant + Commercial uniquement
+    Route::middleware('role:gerant,commercial')->group(function () {
+        Route::resource('clients', ClientController::class);
+    });
+
     Route::post('/ventes/{vente}/paiement', [VenteController::class, 'recordPayment'])->name('ventes.paiement.store');
     Route::post('/ventes/{vente}/cancel', [VenteController::class, 'cancel'])->name('ventes.cancel');
     Route::get('/ventes/{vente}/pdf', [VenteController::class, 'exportPdf'])->name('ventes.pdf');
     Route::get('/paiements/{paiement}/recu', [VenteController::class, 'exportRecu'])->name('paiements.recu');
     Route::resource('ventes', VenteController::class);
 
-    Route::post('/livraisons/{livraison}/paiement', [LivraisonController::class, 'recordPayment'])
-    ->name('livraisons.paiement.store');
-
-
-    Route::resource('fournisseurs', FournisseurController::class);
-    Route::resource('livraisons', LivraisonController::class);
-
-    Route::resource('depenses', DepenseController::class);
+    // Fournisseurs, Livraisons, Dépenses : Gérant + Gestionnaire uniquement
+    Route::middleware('role:gerant,gestionnaire')->group(function () {
+        Route::post('/livraisons/{livraison}/paiement', [LivraisonController::class, 'recordPayment'])->name('livraisons.paiement.store');
+        Route::resource('fournisseurs', FournisseurController::class);
+        Route::resource('livraisons', LivraisonController::class);
+        Route::resource('depenses', DepenseController::class);
+    });
 });
 
 Route::middleware(['auth', 'super_admin'])->prefix('admin')->name('admin.')->group(function () {

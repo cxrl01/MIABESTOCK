@@ -19,11 +19,15 @@ class CategorieController extends Controller
 
     public function create()
     {
+        abort_if(auth()->user()->estCommercial(), 403);
+
         return view('categories.create');
     }
 
     public function store(Request $request)
     {
+        abort_if(auth()->user()->estCommercial(), 403);
+
         $request->validate([
             'nom' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -40,6 +44,7 @@ class CategorieController extends Controller
 
     public function edit(Categorie $category)
     {
+        abort_if(auth()->user()->estCommercial(), 403);
         abort_if($category->boutique_id !== auth()->user()->boutique_id, 403);
 
         return view('categories.edit', ['categorie' => $category]);
@@ -47,6 +52,7 @@ class CategorieController extends Controller
 
     public function update(Request $request, Categorie $category)
     {
+        abort_if(auth()->user()->estCommercial(), 403);
         abort_if($category->boutique_id !== auth()->user()->boutique_id, 403);
 
         $request->validate([
@@ -64,6 +70,7 @@ class CategorieController extends Controller
 
     public function destroy(Categorie $category)
     {
+        abort_if(auth()->user()->estCommercial(), 403);
         abort_if($category->boutique_id !== auth()->user()->boutique_id, 403);
 
         $category->delete();

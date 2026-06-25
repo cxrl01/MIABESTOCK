@@ -66,42 +66,45 @@
                 </span>
             </a>
 
-            <a href="{{ route('clients.index') }}"
-                class="nav-item {{ request()->routeIs('clients.*') ? 'active' : '' }}">
-                <span class="nav-item-left">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                    </svg>
-                    Clients
-                </span>
-            </a>
+            @if(auth()->user()->estGerant() || auth()->user()->estCommercial())
+                <a href="{{ route('clients.index') }}"
+                    class="nav-item {{ request()->routeIs('clients.*') ? 'active' : '' }}">
+                    <span class="nav-item-left">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                        </svg>
+                        Clients
+                    </span>
+                </a>
+            @endif
 
-            <a href="{{ route('fournisseurs.index') }}"
-    class="nav-item {{ request()->routeIs('fournisseurs.*') ? 'active' : '' }}">
-    <span class="nav-item-left">
-        <!-- Icône de colis / livraison -->
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-            <line x1="12" y1="22.08" x2="12" y2="12"></line>
-        </svg>
-        Fournisseurs
-    </span>
-</a>
+            @if(auth()->user()->estGerant() || auth()->user()->estGestionnaire())
+                <a href="{{ route('fournisseurs.index') }}"
+                    class="nav-item {{ request()->routeIs('fournisseurs.*') ? 'active' : '' }}">
+                    <span class="nav-item-left">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                        Fournisseurs
+                    </span>
+                </a>
 
-            <a href="{{ route('livraisons.index') }}"
-                class="nav-item {{ request()->routeIs('livraisons.*') ? 'active' : '' }}">
-                <span class="nav-item-left">
-                    <svg viewBox="0 0 24 24">
-                        <rect x="1" y="3" width="15" height="13" />
-                        <polygon points="16 8 20 8 23 11 23 16 16 16" />
-                        <circle cx="5.5" cy="18.5" r="2.5" />
-                        <circle cx="18.5" cy="18.5" r="2.5" />
-                    </svg>
-                    Livraisons
-                </span>
-            </a>
+                <a href="{{ route('livraisons.index') }}"
+                    class="nav-item {{ request()->routeIs('livraisons.*') ? 'active' : '' }}">
+                    <span class="nav-item-left">
+                        <svg viewBox="0 0 24 24">
+                            <rect x="1" y="3" width="15" height="13" />
+                            <polygon points="16 8 20 8 23 11 23 16 16 16" />
+                            <circle cx="5.5" cy="18.5" r="2.5" />
+                            <circle cx="18.5" cy="18.5" r="2.5" />
+                        </svg>
+                        Livraisons
+                    </span>
+                </a>
+            @endif
 
             @if(auth()->user()->estGerant())
                 <a href="{{ route('equipe.index') }}" class="nav-item {{ request()->routeIs('equipe.*') ? 'active' : '' }}">
@@ -117,16 +120,18 @@
                 </a>
             @endif
 
-            <a href="{{ route('depenses.index') }}"
-                class="nav-item {{ request()->routeIs('depenses.*') ? 'active' : '' }}">
-                <span class="nav-item-left">
-                    <svg viewBox="0 0 24 24">
-                        <line x1="12" y1="1" x2="12" y2="23" />
-                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                    </svg>
-                    Dépenses
-                </span>
-            </a>
+            @if(auth()->user()->estGerant() || auth()->user()->estGestionnaire())
+                <a href="{{ route('depenses.index') }}"
+                    class="nav-item {{ request()->routeIs('depenses.*') ? 'active' : '' }}">
+                    <span class="nav-item-left">
+                        <svg viewBox="0 0 24 24">
+                            <line x1="12" y1="1" x2="12" y2="23" />
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                        </svg>
+                        Dépenses
+                    </span>
+                </a>
+            @endif
 
             <a href="{{ route('rapports.index') }}"
                 class="nav-item {{ request()->routeIs('rapports.*') ? 'active' : '' }}">
