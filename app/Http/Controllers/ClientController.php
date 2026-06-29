@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Client;
+use App\Models\Commande;
 use Illuminate\Http\Request;
 
 class ClientController extends Controller
@@ -21,11 +22,63 @@ class ClientController extends Controller
     }
 
     /**
+     * Affiche la liste des clients ayant une dette en cours.
+     */
+    public function dettes()
+    {
+        $clients = Client::where('boutique_id', auth()->user()->boutique_id)
+            ->where('solde_dette', '>', 0)
+            ->orderByDesc('solde_dette')
+            ->get();
+
+        // Pour chaque client, on récupère la date de sa plus ancienne vente non soldée
+        $clients = $clients->map(function ($client) {
+            $derniereVenteNonSoldee = Commande::where('client_id', $client->id)
+                ->where('type', 'vente')
+                ->where('statut', 'en_cours')
+                ->oldest()
+                ->first();
+
+            $client->depuis = $derniereVenteNonSoldee?->created_at;
+
+            return $client;
+        });
+
+        $totalDettes = $clients->sum('solde_dette');
+
+        return view('clients.dettes', compact('clients', 'totalDettes'));
+    }
+
+    /**
      * Affiche le formulaire de création.
      */
     public function create()
     {
         return view('clients.create');
+    }
+
+    public function quickCreate(Request $request)
+    {
+        $request->validate([
+            'nom_complet' => ['required', 'string', 'max:255'],
+            'telephone' => ['nullable', 'string', 'max:30'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'adresse' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $client = Client::create([
+            'boutique_id' => auth()->user()->boutique_id,
+            'nom_complet' => $request->nom_complet,
+            'telephone' => $request->telephone,
+            'email' => $request->email,
+            'adresse' => $request->adresse,
+            'solde_dette' => 0,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'client' => $client,
+        ]);
     }
 
     /**

@@ -45,12 +45,17 @@
 
                 <div class="form-group">
                     <label for="client_id" class="form-label">Client</label>
-                    <select id="client_id" name="client_id" class="form-input">
-                        <option value="">— Client anonyme —</option>
-                        @foreach($clients as $client)
-                            <option value="{{ $client->id }}">{{ $client->nom_complet }}</option>
-                        @endforeach
-                    </select>
+                    <div style="display: flex; gap: 8px;">
+                        <select id="client_id" name="client_id" class="form-input" style="flex: 1;">
+                            <option value="">— Client anonyme —</option>
+                            @foreach($clients as $client)
+                                <option value="{{ $client->id }}">{{ $client->nom_complet }}</option>
+                            @endforeach
+                        </select>
+                        <button type="button" id="btnNouveauClient" class="btn-secondary" title="Créer un nouveau client" style="flex-shrink: 0; padding: 0 14px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 16px; height: 16px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        </button>
+                    </div>
                 </div>
 
                 <hr style="border: none; border-top: 1px solid var(--border); margin: 16px 0;">
@@ -74,11 +79,21 @@
                     </select>
                 </div>
 
-                <div class="form-group" style="margin-top: 16px;">
+                <div class="form-group" style="margin-top: 16px; display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="payerTotalite" checked style="width: 16px; height: 16px; cursor: pointer;">
+                    <label for="payerTotalite" style="font-size: 13px; color: var(--text); cursor: pointer; margin-bottom: 0;">
+                        Le client paie la totalité maintenant
+                    </label>
+                </div>
+
+                <div class="form-group" style="margin-top: 10px;">
                     <label for="montant_paye" class="form-label">Montant payé</label>
-                    <input type="number" id="montant_paye" name="montant_paye" class="form-input" min="0" step="1" value="0" required>
+                    <input type="number" id="montant_paye" name="montant_paye" class="form-input" min="0" step="1" value="0" required readonly>
                     <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 6px;">
                         Reste à payer : <span id="resteAffiche">0 F</span>
+                    </p>
+                    <p id="monnaieARendreBox" style="font-size: 13px; color: var(--green); margin-top: 6px; font-weight: 600; display: none;">
+                        Monnaie à rendre : <span id="monnaieARendreAffiche">0 F</span>
                     </p>
                 </div>
 
@@ -91,6 +106,8 @@
     </div>
 
     <script>
+    document.addEventListener('DOMContentLoaded', function() {
+
         const panier = {}; // { produitId: { nom, prix, quantite, stock } }
 
         const searchInput = document.getElementById('searchInput');
@@ -99,8 +116,10 @@
         const totalAffiche = document.getElementById('totalAffiche');
         const resteAffiche = document.getElementById('resteAffiche');
         const montantPayeInput = document.getElementById('montant_paye');
+        const payerTotaliteCheckbox = document.getElementById('payerTotalite');
         const validerBtn = document.getElementById('validerBtn');
         const venteForm = document.getElementById('venteForm');
+        const clientSelect = document.getElementById('client_id');
 
         // Recherche en temps réel (nom ou code) — compatible scanner USB
         searchInput.addEventListener('input', () => {
@@ -168,6 +187,8 @@
             render();
         }
 
+        window.changerQuantite = changerQuantite;
+
         function render() {
             const ids = Object.keys(panier);
 
@@ -205,7 +226,19 @@
 
             const total = ids.reduce((sum, id) => sum + panier[id].prix * panier[id].quantite, 0);
             totalAffiche.textContent = total.toLocaleString('fr-FR') + ' F';
-            montantPayeInput.value = total;
+            appliquerModePaiement();
+        }
+
+        function appliquerModePaiement() {
+            const total = Object.keys(panier).reduce((sum, id) => sum + panier[id].prix * panier[id].quantite, 0);
+
+            if (payerTotaliteCheckbox.checked) {
+                montantPayeInput.value = total;
+                montantPayeInput.readOnly = true;
+            } else {
+                montantPayeInput.readOnly = false;
+            }
+
             calculerReste();
         }
 
@@ -214,8 +247,20 @@
             const paye = parseFloat(montantPayeInput.value) || 0;
             const reste = Math.max(total - paye, 0);
             resteAffiche.textContent = reste.toLocaleString('fr-FR') + ' F';
+
+            const monnaieBox = document.getElementById('monnaieARendreBox');
+            const monnaieAffiche = document.getElementById('monnaieARendreAffiche');
+
+            if (paye > total) {
+                const monnaie = paye - total;
+                monnaieAffiche.textContent = monnaie.toLocaleString('fr-FR') + ' F';
+                monnaieBox.style.display = 'block';
+            } else {
+                monnaieBox.style.display = 'none';
+            }
         }
 
+        payerTotaliteCheckbox.addEventListener('change', appliquerModePaiement);
         montantPayeInput.addEventListener('input', calculerReste);
 
         venteForm.addEventListener('submit', (e) => {
@@ -241,7 +286,7 @@
                 if (data.success) {
                     const printBtn = document.getElementById('modalPrintInvoice');
                     printBtn.href = data.pdf_url;
-                    
+
                     window.open(data.pdf_url, '_blank');
 
                     document.getElementById('success-modal').style.display = 'flex';
@@ -268,13 +313,85 @@
 
             render();
             venteForm.reset();
-            
+            payerTotaliteCheckbox.checked = true;
+            montantPayeInput.readOnly = true;
+
             validerBtn.disabled = true;
             validerBtn.textContent = 'Valider la vente';
-            
+
             searchInput.value = '';
             searchInput.focus();
         });
+
+        // ===== CRÉATION RAPIDE DE CLIENT =====
+        document.getElementById('btnNouveauClient').addEventListener('click', () => {
+            document.getElementById('quick-client-modal').style.display = 'flex';
+            document.getElementById('quickClientNom').focus();
+        });
+
+        document.getElementById('quickClientCancel').addEventListener('click', () => {
+            document.getElementById('quick-client-modal').style.display = 'none';
+            document.getElementById('quickClientForm').reset();
+            document.getElementById('quickClientError').style.display = 'none';
+        });
+
+        document.getElementById('quickClientForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const nom = document.getElementById('quickClientNom').value.trim();
+            const telephone = document.getElementById('quickClientTelephone').value.trim();
+            const email = document.getElementById('quickClientEmail').value.trim();
+            const adresse = document.getElementById('quickClientAdresse').value.trim();
+            const errorEl = document.getElementById('quickClientError');
+            const submitBtn = document.getElementById('quickClientSubmit');
+
+            if (!nom) {
+                errorEl.textContent = 'Le nom est obligatoire.';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Création...';
+            errorEl.style.display = 'none';
+
+            fetch('{{ route("clients.quick-create") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ nom_complet: nom, telephone: telephone, email: email, adresse: adresse })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const option = document.createElement('option');
+                    option.value = data.client.id;
+                    option.textContent = data.client.nom_complet;
+                    option.selected = true;
+                    clientSelect.appendChild(option);
+
+                    document.getElementById('quick-client-modal').style.display = 'none';
+                    document.getElementById('quickClientForm').reset();
+                } else {
+                    errorEl.textContent = data.message || 'Erreur lors de la création du client.';
+                    errorEl.style.display = 'block';
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                errorEl.textContent = 'Une erreur est survenue.';
+                errorEl.style.display = 'block';
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Créer le client';
+            });
+        });
+
+    });
     </script>
 
     <!-- Modal Succès Vente -->
@@ -285,7 +402,7 @@
             </div>
             <h3 style="font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 8px;">Vente enregistrée !</h3>
             <p style="color: var(--text-sec); font-size: 14px; margin-bottom: 24px; line-height: 1.5;">La transaction a été validée et les stocks ont été mis à jour automatiquement.</p>
-            
+
             <div style="display: flex; flex-direction: column; gap: 12px;">
                 <a id="modalPrintInvoice" href="#" target="_blank" class="btn-action" style="width: 100%; justify-content: center; font-weight: 700; height: 42px; display: inline-flex; align-items: center; gap: 6px;">
                     🖨️ Imprimer la Facture
@@ -297,6 +414,42 @@
                     📋 Historique des Ventes
                 </a>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal Création Rapide Client -->
+    <div id="quick-client-modal" class="modal" style="display: none; position: fixed; z-index: 1100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); backdrop-filter: blur(4px); align-items: center; justify-content: center;">
+        <div class="modal-content" style="background-color: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; max-width: 420px; width: 90%; box-shadow: var(--shadow); margin: auto;">
+            <h3 style="font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 16px;">Nouveau client</h3>
+
+            <form id="quickClientForm">
+                <div id="quickClientError" class="form-error" style="display: none; margin-bottom: 12px; background: var(--red-light); padding: 8px 12px; border-radius: var(--radius-sm);"></div>
+
+                <div class="form-group">
+                    <label for="quickClientNom" class="form-label">Nom complet</label>
+                    <input type="text" id="quickClientNom" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="quickClientTelephone" class="form-label">Téléphone (optionnel)</label>
+                    <input type="text" id="quickClientTelephone" class="form-input">
+                </div>
+
+                <div class="form-group">
+                    <label for="quickClientEmail" class="form-label">Email (optionnel)</label>
+                    <input type="email" id="quickClientEmail" class="form-input">
+                </div>
+
+                <div class="form-group">
+                    <label for="quickClientAdresse" class="form-label">Adresse (optionnel)</label>
+                    <input type="text" id="quickClientAdresse" class="form-input">
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" id="quickClientSubmit" class="btn-action">Créer le client</button>
+                    <button type="button" id="quickClientCancel" class="btn-secondary">Annuler</button>
+                </div>
+            </form>
         </div>
     </div>
 

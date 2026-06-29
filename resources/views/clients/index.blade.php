@@ -5,10 +5,19 @@
             <h2 class="page-header-title">Clients</h2>
             <p class="page-header-sub">{{ $clients->count() }} client(s) enregistré(s)</p>
         </div>
-        <a href="{{ route('clients.create') }}" class="btn-action">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 16px; height: 16px; margin-right: 4px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Nouveau client
-        </a>
+        <div style="display: flex; gap: 10px;">
+            <a href="{{ route('clients.dettes') }}" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 6px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Dettes clients
+                @if($clients->filter(fn($c) => $c->solde_dette > 0)->count() > 0)
+                    <span class="nav-badge" style="margin-left: 4px;">{{ $clients->filter(fn($c) => $c->solde_dette > 0)->count() }}</span>
+                @endif
+            </a>
+            <a href="{{ route('clients.create') }}" class="btn-action">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 16px; height: 16px; margin-right: 4px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Nouveau client
+            </a>
+        </div>
     </div>
 
     <!-- Stats Cards Grid -->

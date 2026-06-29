@@ -5,6 +5,7 @@ use App\Http\Controllers\BoutiqueSettingsController;
 use App\Http\Controllers\CategorieController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ForcePasswordChangeController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProduitController;
 use App\Http\Controllers\ProfileController;
@@ -26,6 +27,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/rapports', [RapportController::class, 'index'])->name('rapports.index');
 
+    Route::get('/changer-mot-de-passe', [ForcePasswordChangeController::class, 'edit'])->name('password.force.edit');
+    Route::put('/changer-mot-de-passe', [ForcePasswordChangeController::class, 'update'])->name('password.force.update');
+
     Route::resource('categories', CategorieController::class);
     Route::resource('produits', ProduitController::class);
 
@@ -39,6 +43,8 @@ Route::middleware('auth')->group(function () {
 
     // Clients : Gérant + Commercial uniquement
     Route::middleware('role:gerant,commercial')->group(function () {
+        Route::get('/clients/dettes', [ClientController::class, 'dettes'])->name('clients.dettes');
+        Route::post('/clients/quick-create', [ClientController::class, 'quickCreate'])->name('clients.quick-create');
         Route::resource('clients', ClientController::class);
     });
 

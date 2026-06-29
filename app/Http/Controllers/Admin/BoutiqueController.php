@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\BoutiqueStatutChange;
 use App\Models\Boutique;
 use App\Models\Commande;
 use App\Models\JournalActivite;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 class BoutiqueController extends Controller
 {
@@ -62,15 +64,21 @@ class BoutiqueController extends Controller
     /**
      * Suspend une boutique.
      */
-    public function suspend(Boutique $boutique)
+    public function suspend(Request $request, Boutique $boutique)
     {
+        $request->validate([
+            'motif' => ['required', 'string', 'max:500'],
+        ]);
+
         $boutique->update(['statut' => 'suspendue']);
 
         JournalActivite::log(
             'boutique_suspendue',
-            "La boutique \"{$boutique->nom}\" a été suspendue.",
+            "La boutique \"{$boutique->nom}\" a été suspendue. Motif : {$request->motif}",
             $boutique->id
         );
+
+        $this->notifierGerant($boutique, 'suspendue', $request->motif);
 
         return redirect()->route('admin.boutiques.index')->with('success', "La boutique \"{$boutique->nom}\" a été suspendue.");
     }
@@ -88,24 +96,44 @@ class BoutiqueController extends Controller
             $boutique->id
         );
 
+        $this->notifierGerant($boutique, 'reactivee');
+
         return redirect()->route('admin.boutiques.index')->with('success', "La boutique \"{$boutique->nom}\" a été réactivée.");
     }
 
     /**
      * Supprime définitivement une boutique.
      */
-    public function destroy(Boutique $boutique)
+    public function destroy(Request $request, Boutique $boutique)
     {
+        $request->validate([
+            'motif' => ['required', 'string', 'max:500'],
+        ]);
+
         $nom = $boutique->nom;
 
         JournalActivite::log(
             'boutique_supprimee',
-            "La boutique \"{$nom}\" a été supprimée définitivement."
+            "La boutique \"{$nom}\" a été supprimée définitivement. Motif : {$request->motif}"
         );
+
+        $this->notifierGerant($boutique, 'supprimee', $request->motif);
 
         $boutique->delete();
 
         return redirect()->route('admin.boutiques.index')->with('success', "La boutique \"{$nom}\" a été supprimée définitivement.");
+    }
+
+    /**
+     * Envoie un email au(x) Gérant(s) de la boutique concernée.
+     */
+    private function notifierGerant(Boutique $boutique, string $action, ?string $motif = null)
+    {
+        $gerants = $boutique->users()->where('role', 'gerant')->get();
+
+        foreach ($gerants as $gerant) {
+            Mail::to($gerant->email)->send(new BoutiqueStatutChange($boutique, $action, $motif));
+        }
     }
 
     /**
@@ -125,102 +153,100 @@ class BoutiqueController extends Controller
      */
     public function statistiques(Request $request)
     {
-    $periode = $request->input('periode', 'mois');
-    $mois = (int) $request->input('mois', now()->month);
-    $annee = (int) $request->input('annee', now()->year);
-    $dateDebut = $request->input('date_debut', now()->startOfMonth()->format('Y-m-d'));
-    $dateFin = $request->input('date_fin', now()->format('Y-m-d'));
+        $periode = $request->input('periode', 'mois');
+        $mois = (int) $request->input('mois', now()->month);
+        $annee = (int) $request->input('annee', now()->year);
+        $dateDebut = $request->input('date_debut', now()->startOfMonth()->format('Y-m-d'));
+        $dateFin = $request->input('date_fin', now()->format('Y-m-d'));
 
-    $ventesQuery = Commande::where('type', 'vente')->where('statut', '!=', 'annulee');
-
-    if ($periode === 'mois') {
-        $ventesQuery->whereMonth('created_at', $mois)->whereYear('created_at', $annee);
-    } elseif ($periode === 'annee') {
-        $ventesQuery->whereYear('created_at', $annee);
-    } else {
-        $ventesQuery->whereDate('created_at', '>=', $dateDebut)->whereDate('created_at', '<=', $dateFin);
-    }
-
-    $ventes = $ventesQuery->get();
-
-    $chiffreAffairesGlobal = $ventes->sum('total_ttc');
-    $nombreVentesTotal = $ventes->count();
-    $panierMoyenGlobal = $nombreVentesTotal > 0 ? $chiffreAffairesGlobal / $nombreVentesTotal : 0;
-
-    // Évolution du CA global
-    $evolution = [];
-    if ($periode === 'mois') {
-        $nbJours = \Carbon\Carbon::createFromDate($annee, $mois, 1)->daysInMonth;
-        for ($j = 1; $j <= $nbJours; $j++) {
-            $total = Commande::where('type', 'vente')->where('statut', '!=', 'annulee')
-                ->whereDate('created_at', \Carbon\Carbon::createFromDate($annee, $mois, $j))
-                ->sum('total_ttc');
-            $evolution[] = ['label' => $j, 'total' => $total];
-        }
-    } elseif ($periode === 'annee') {
-        for ($m = 1; $m <= 12; $m++) {
-            $total = Commande::where('type', 'vente')->where('statut', '!=', 'annulee')
-                ->whereMonth('created_at', $m)->whereYear('created_at', $annee)
-                ->sum('total_ttc');
-            $evolution[] = ['label' => \Carbon\Carbon::create()->month($m)->translatedFormat('M'), 'total' => $total];
-        }
-    } else {
-        $debut = \Carbon\Carbon::parse($dateDebut);
-        $fin = \Carbon\Carbon::parse($dateFin);
-        $diffJours = $debut->diffInDays($fin);
-
-        if ($diffJours <= 60) {
-            for ($date = $debut->copy(); $date->lte($fin); $date->addDay()) {
-                $total = Commande::where('type', 'vente')->where('statut', '!=', 'annulee')
-                    ->whereDate('created_at', $date)
-                    ->sum('total_ttc');
-                $evolution[] = ['label' => $date->format('d/m'), 'total' => $total];
-            }
-        } else {
-            for ($date = $debut->copy(); $date->lte($fin); $date->addWeek()) {
-                $finSemaine = $date->copy()->addDays(6)->min($fin);
-                $total = Commande::where('type', 'vente')->where('statut', '!=', 'annulee')
-                    ->whereDate('created_at', '>=', $date)
-                    ->whereDate('created_at', '<=', $finSemaine)
-                    ->sum('total_ttc');
-                $evolution[] = ['label' => $date->format('d/m'), 'total' => $total];
-            }
-        }
-    }
-
-    // Classement des boutiques par CA (sur la période)
-    $classementBoutiques = Boutique::with([])->get()->map(function ($boutique) use ($periode, $mois, $annee, $dateDebut, $dateFin) {
-        $q = Commande::where('boutique_id', $boutique->id)->where('type', 'vente')->where('statut', '!=', 'annulee');
+        $ventesQuery = Commande::where('type', 'vente')->where('statut', '!=', 'annulee');
 
         if ($periode === 'mois') {
-            $q->whereMonth('created_at', $mois)->whereYear('created_at', $annee);
+            $ventesQuery->whereMonth('created_at', $mois)->whereYear('created_at', $annee);
         } elseif ($periode === 'annee') {
-            $q->whereYear('created_at', $annee);
+            $ventesQuery->whereYear('created_at', $annee);
         } else {
-            $q->whereDate('created_at', '>=', $dateDebut)->whereDate('created_at', '<=', $dateFin);
+            $ventesQuery->whereDate('created_at', '>=', $dateDebut)->whereDate('created_at', '<=', $dateFin);
         }
 
-        return [
-            'boutique' => $boutique,
-            'ca' => $q->sum('total_ttc'),
-            'ventes' => $q->count(),
-        ];
-    })->sortByDesc('ca')->values();
+        $ventes = $ventesQuery->get();
 
-    $anneesDisponibles = range(now()->year, now()->year - 4);
+        $chiffreAffairesGlobal = $ventes->sum('total_ttc');
+        $nombreVentesTotal = $ventes->count();
+        $panierMoyenGlobal = $nombreVentesTotal > 0 ? $chiffreAffairesGlobal / $nombreVentesTotal : 0;
 
-    return view('admin.statistiques', compact(
-        'chiffreAffairesGlobal',
-        'nombreVentesTotal',
-        'panierMoyenGlobal',
-        'evolution',
-        'classementBoutiques',
-        'periode',
-        'mois',
-        'annee',
-        'anneesDisponibles',
-        'dateDebut',
-        'dateFin'
-    ));
+        $evolution = [];
+        if ($periode === 'mois') {
+            $nbJours = \Carbon\Carbon::createFromDate($annee, $mois, 1)->daysInMonth;
+            for ($j = 1; $j <= $nbJours; $j++) {
+                $total = Commande::where('type', 'vente')->where('statut', '!=', 'annulee')
+                    ->whereDate('created_at', \Carbon\Carbon::createFromDate($annee, $mois, $j))
+                    ->sum('total_ttc');
+                $evolution[] = ['label' => $j, 'total' => $total];
+            }
+        } elseif ($periode === 'annee') {
+            for ($m = 1; $m <= 12; $m++) {
+                $total = Commande::where('type', 'vente')->where('statut', '!=', 'annulee')
+                    ->whereMonth('created_at', $m)->whereYear('created_at', $annee)
+                    ->sum('total_ttc');
+                $evolution[] = ['label' => \Carbon\Carbon::create()->month($m)->translatedFormat('M'), 'total' => $total];
+            }
+        } else {
+            $debut = \Carbon\Carbon::parse($dateDebut);
+            $fin = \Carbon\Carbon::parse($dateFin);
+            $diffJours = $debut->diffInDays($fin);
+
+            if ($diffJours <= 60) {
+                for ($date = $debut->copy(); $date->lte($fin); $date->addDay()) {
+                    $total = Commande::where('type', 'vente')->where('statut', '!=', 'annulee')
+                        ->whereDate('created_at', $date)
+                        ->sum('total_ttc');
+                    $evolution[] = ['label' => $date->format('d/m'), 'total' => $total];
+                }
+            } else {
+                for ($date = $debut->copy(); $date->lte($fin); $date->addWeek()) {
+                    $finSemaine = $date->copy()->addDays(6)->min($fin);
+                    $total = Commande::where('type', 'vente')->where('statut', '!=', 'annulee')
+                        ->whereDate('created_at', '>=', $date)
+                        ->whereDate('created_at', '<=', $finSemaine)
+                        ->sum('total_ttc');
+                    $evolution[] = ['label' => $date->format('d/m'), 'total' => $total];
+                }
+            }
+        }
+
+        $classementBoutiques = Boutique::with([])->get()->map(function ($boutique) use ($periode, $mois, $annee, $dateDebut, $dateFin) {
+            $q = Commande::where('boutique_id', $boutique->id)->where('type', 'vente')->where('statut', '!=', 'annulee');
+
+            if ($periode === 'mois') {
+                $q->whereMonth('created_at', $mois)->whereYear('created_at', $annee);
+            } elseif ($periode === 'annee') {
+                $q->whereYear('created_at', $annee);
+            } else {
+                $q->whereDate('created_at', '>=', $dateDebut)->whereDate('created_at', '<=', $dateFin);
+            }
+
+            return [
+                'boutique' => $boutique,
+                'ca' => $q->sum('total_ttc'),
+                'ventes' => $q->count(),
+            ];
+        })->sortByDesc('ca')->values();
+
+        $anneesDisponibles = range(now()->year, now()->year - 4);
+
+        return view('admin.statistiques', compact(
+            'chiffreAffairesGlobal',
+            'nombreVentesTotal',
+            'panierMoyenGlobal',
+            'evolution',
+            'classementBoutiques',
+            'periode',
+            'mois',
+            'annee',
+            'anneesDisponibles',
+            'dateDebut',
+            'dateFin'
+        ));
     }
 }

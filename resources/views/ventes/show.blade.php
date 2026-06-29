@@ -81,7 +81,7 @@
                 <span>{{ number_format($soldeRestant, 0, ',', ' ') }} F</span>
             </div>
 
-            @if($soldeRestant > 0 && $vente->statut !== 'annulee')
+            @if($soldeRestant > 0 && $vente->statut !== 'annulee' && !auth()->user()->estGestionnaire())
                 <form method="POST" action="{{ route('ventes.paiement.store', $vente) }}" style="margin-top: 20px;">
                     @csrf
                     <div class="form-group">
@@ -110,7 +110,7 @@
                 <span class="badge-statut badge-statut-partielle">Paiement partiel</span>
             @endif
 
-            @if($vente->statut !== 'annulee')
+            @if($vente->statut !== 'annulee' && auth()->user()->estGerant())
                 <form method="POST" action="{{ route('ventes.cancel', $vente) }}" onsubmit="return confirm('Annuler cette vente ? Le stock sera restitué et la dette client annulée.');" style="margin-top: 20px;">
                     @csrf
                     <button type="submit" class="btn-action" style="width: 100%; justify-content: center; background: var(--red);">

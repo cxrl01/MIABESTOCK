@@ -15,6 +15,9 @@ class RapportController extends Controller
     {
         $boutiqueId = auth()->user()->boutique_id;
 
+        // Le Commercial n'a accès qu'à une vue limitée (top ventes/produits, pas de finances sensibles)
+        $vueLimitee = auth()->user()->estCommercial();
+
         $periode = $request->input('periode', 'mois'); // mois | annee | personnalise
         $mois = (int) $request->input('mois', now()->month);
         $annee = (int) $request->input('annee', now()->year);
@@ -43,7 +46,7 @@ class RapportController extends Controller
         $nombreVentes = $ventes->count();
         $panierMoyen = $nombreVentes > 0 ? $chiffreAffaires / $nombreVentes : 0;
 
-        // Calcul du coût d'achat global pour la marge
+        // Calcul du coût d'achat global pour la marge (caché pour le Commercial dans la vue)
         $coutAchatTotal = LigneCommande::whereIn('commande_id', $ventes->pluck('id'))
             ->join('produits', 'ligne_commandes.produit_id', '=', 'produits.id')
             ->sum(DB::raw('ligne_commandes.quantite * produits.prix_achat'));
@@ -51,7 +54,7 @@ class RapportController extends Controller
         $marge = $chiffreAffaires - $coutAchatTotal;
         $margePourcent = $chiffreAffaires > 0 ? ($marge / $chiffreAffaires) * 100 : 0;
 
-        // 3. Calcul des dépenses
+        // 3. Calcul des dépenses (caché pour le Commercial dans la vue)
         $depensesQuery = Depense::where('boutique_id', $boutiqueId);
         if ($periode === 'mois') {
             $depensesQuery->whereMonth('date', $mois)->whereYear('date', $annee);
@@ -127,7 +130,8 @@ class RapportController extends Controller
         return view('rapports.index', compact(
             'chiffreAffaires', 'nombreVentes', 'panierMoyen', 'marge', 'margePourcent',
             'totalDepenses', 'evolution', 'topProduits', 'topClients',
-            'periode', 'mois', 'annee', 'anneesDisponibles', 'dateDebut', 'dateFin'
+            'periode', 'mois', 'annee', 'anneesDisponibles', 'dateDebut', 'dateFin',
+            'vueLimitee'
         ));
     }
 }

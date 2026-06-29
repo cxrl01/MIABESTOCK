@@ -87,11 +87,10 @@
                             <td class="text-right">
                                 <div class="row-actions">
                                     @if($boutique->statut === 'active')
-                                        <form method="POST" action="{{ route('admin.boutiques.suspend', $boutique) }}" onsubmit="return confirm('Suspendre cette boutique ? Ses utilisateurs ne pourront plus se connecter.');" style="display: inline;">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button type="submit" class="btn-secondary" style="padding: 6px 12px; font-size: 12px;">Suspendre</button>
-                                        </form>
+                                        <button type="button" class="btn-secondary" style="padding: 6px 12px; font-size: 12px;"
+                                            onclick="ouvrirModaleMotif('{{ route('admin.boutiques.suspend', $boutique) }}', 'suspend', '{{ $boutique->nom }}')">
+                                            Suspendre
+                                        </button>
                                     @else
                                         <form method="POST" action="{{ route('admin.boutiques.reactivate', $boutique) }}" style="display: inline;">
                                             @csrf
@@ -99,13 +98,10 @@
                                             <button type="submit" class="btn-action" style="padding: 6px 12px; font-size: 12px;">Réactiver</button>
                                         </form>
                                     @endif
-                                    <form method="POST" action="{{ route('admin.boutiques.destroy', $boutique) }}" onsubmit="return confirm('Supprimer définitivement cette boutique et toutes ses données ?');" style="display: inline;">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="icon-btn-sm icon-btn-danger" title="Supprimer">
-                                            <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-                                        </button>
-                                    </form>
+                                    <button type="button" class="icon-btn-sm icon-btn-danger" title="Supprimer"
+                                        onclick="ouvrirModaleMotif('{{ route('admin.boutiques.destroy', $boutique) }}', 'destroy', '{{ $boutique->nom }}')">
+                                        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -114,5 +110,55 @@
             </table>
         </div>
     @endif
+
+    <!-- Modal Motif (Suspendre / Supprimer) -->
+    <div id="motif-modal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); backdrop-filter: blur(4px); align-items: center; justify-content: center;">
+        <div class="modal-content" style="background-color: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; max-width: 440px; width: 90%; box-shadow: var(--shadow); margin: auto;">
+            <h3 id="motifModalTitle" style="font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 8px;">Suspendre la boutique</h3>
+            <p id="motifModalText" style="font-size: 13.5px; color: var(--text-sec); margin-bottom: 16px;"></p>
+
+            <form id="motifForm" method="POST">
+                @csrf
+                <input type="hidden" id="motifMethod" name="_method" value="PATCH">
+
+                <div class="form-group">
+                    <label for="motif" class="form-label">Motif (obligatoire)</label>
+                    <textarea id="motif" name="motif" class="form-textarea" rows="3" required placeholder="Expliquez la raison de cette action..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" id="motifSubmitBtn" class="btn-action" style="background: var(--red);">Confirmer</button>
+                    <button type="button" class="btn-secondary" onclick="document.getElementById('motif-modal').style.display='none'">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function ouvrirModaleMotif(url, type, nomBoutique) {
+            const modal = document.getElementById('motif-modal');
+            const form = document.getElementById('motifForm');
+            const title = document.getElementById('motifModalTitle');
+            const text = document.getElementById('motifModalText');
+            const methodInput = document.getElementById('motifMethod');
+            const submitBtn = document.getElementById('motifSubmitBtn');
+
+            form.action = url;
+
+            if (type === 'suspend') {
+                title.textContent = 'Suspendre la boutique';
+                text.textContent = `Vous êtes sur le point de suspendre "${nomBoutique}". Ses utilisateurs ne pourront plus se connecter.`;
+                methodInput.value = 'PATCH';
+                submitBtn.textContent = 'Suspendre';
+            } else {
+                title.textContent = 'Supprimer la boutique';
+                text.textContent = `Vous êtes sur le point de supprimer définitivement "${nomBoutique}" et toutes ses données. Cette action est irréversible.`;
+                methodInput.value = 'DELETE';
+                submitBtn.textContent = 'Supprimer définitivement';
+            }
+
+            modal.style.display = 'flex';
+        }
+    </script>
 
 </x-admin-layout>

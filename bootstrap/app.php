@@ -4,6 +4,7 @@ use App\Http\Middleware\CheckBoutiqueActive;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\EnsureUserIsGerant;
 use App\Http\Middleware\EnsureUserIsSuperAdmin;
+use App\Http\Middleware\ForcePasswordChange;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->appendToGroup('web', CheckBoutiqueActive::class);
+        $middleware->appendToGroup('web', ForcePasswordChange::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

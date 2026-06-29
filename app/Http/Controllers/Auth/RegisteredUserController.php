@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Mail\BienvenueGerant;
 use App\Models\Boutique;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
@@ -10,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -53,6 +55,8 @@ class RegisteredUserController extends Controller
         ]);
 
         event(new Registered($user));
+
+        Mail::to($user->email)->send(new BienvenueGerant($user));
 
         Auth::login($user);
 

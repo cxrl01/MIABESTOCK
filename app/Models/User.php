@@ -17,6 +17,7 @@ class User extends Authenticatable
         'role',
         'boutique_id',
         'est_actif',
+        'mot_de_passe_a_changer',
     ];
 
     protected $hidden = [
@@ -30,6 +31,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'est_actif' => 'boolean',
+            'mot_de_passe_a_changer' => 'boolean',
         ];
     }
 

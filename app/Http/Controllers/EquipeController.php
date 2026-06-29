@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\NouveauCompteEquipe;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class EquipeController extends Controller
 {
@@ -28,20 +30,25 @@ class EquipeController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'role' => ['required', 'in:gestionnaire,commercial'],
         ]);
 
-        User::create([
+        // Génère un mot de passe temporaire aléatoire
+        $motDePasseTemporaire = Str::random(10);
+
+        $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'password' => Hash::make($motDePasseTemporaire),
             'role' => $request->role,
             'boutique_id' => auth()->user()->boutique_id,
             'est_actif' => true,
+            'mot_de_passe_a_changer' => true,
         ]);
 
-        return redirect()->route('equipe.index')->with('success', 'Collaborateur ajouté avec succès.');
+        Mail::to($user->email)->send(new NouveauCompteEquipe($user, $motDePasseTemporaire));
+
+        return redirect()->route('equipe.index')->with('success', 'Collaborateur ajouté avec succès. Ses identifiants lui ont été envoyés par email.');
     }
 
     public function edit(User $equipe)
@@ -59,20 +66,13 @@ class EquipeController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email,' . $equipe->id],
             'role' => ['required', 'in:gestionnaire,commercial'],
-            'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        $data = [
+        $equipe->update([
             'name' => $request->name,
             'email' => $request->email,
             'role' => $request->role,
-        ];
-
-        if ($request->filled('password')) {
-            $data['password'] = Hash::make($request->password);
-        }
-
-        $equipe->update($data);
+        ]);
 
         return redirect()->route('equipe.index')->with('success', 'Collaborateur modifié avec succès.');
     }

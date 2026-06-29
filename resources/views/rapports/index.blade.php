@@ -69,19 +69,22 @@
             <div style="font-size: 1.5rem; font-weight: bold; margin-top: 4px;">{{ number_format($chiffreAffaires, 0, ',', ' ') }} F</div>
             <div style="font-size: 0.8rem; color: #999; margin-top: 4px;">{{ $nombreVentes }} vente(s)</div>
         </div>
-        <div class="form-card" style="padding: 16px;">
-            <div style="font-size: 0.85rem; color: #666;">Marge brute</div>
-            <div style="font-size: 1.5rem; font-weight: bold; margin-top: 4px; color: #2e7d32;">{{ number_format($marge, 0, ',', ' ') }} F</div>
-            <div style="font-size: 0.8rem; color: #2e7d32; margin-top: 4px;">Taux : {{ number_format($margePourcent, 1) }}%</div>
-        </div>
-        <div class="form-card" style="padding: 16px;">
-            <div style="font-size: 0.85rem; color: #666;">Panier moyen</div>
-            <div style="font-size: 1.5rem; font-weight: bold; margin-top: 4px;">{{ number_format($panierMoyen, 0, ',', ' ') }} F</div>
-        </div>
-        <div class="form-card" style="padding: 16px;">
-            <div style="font-size: 0.85rem; color: #666;">Dépenses</div>
-            <div style="font-size: 1.5rem; font-weight: bold; margin-top: 4px; color: #c62828;">{{ number_format($totalDepenses, 0, ',', ' ') }} F</div>
-        </div>
+
+        @unless($vueLimitee)
+            <div class="form-card" style="padding: 16px;">
+                <div style="font-size: 0.85rem; color: #666;">Marge brute</div>
+                <div style="font-size: 1.5rem; font-weight: bold; margin-top: 4px; color: #2e7d32;">{{ number_format($marge, 0, ',', ' ') }} F</div>
+                <div style="font-size: 0.8rem; color: #2e7d32; margin-top: 4px;">Taux : {{ number_format($margePourcent, 1) }}%</div>
+            </div>
+            <div class="form-card" style="padding: 16px;">
+                <div style="font-size: 0.85rem; color: #666;">Panier moyen</div>
+                <div style="font-size: 1.5rem; font-weight: bold; margin-top: 4px;">{{ number_format($panierMoyen, 0, ',', ' ') }} F</div>
+            </div>
+            <div class="form-card" style="padding: 16px;">
+                <div style="font-size: 0.85rem; color: #666;">Dépenses</div>
+                <div style="font-size: 1.5rem; font-weight: bold; margin-top: 4px; color: #c62828;">{{ number_format($totalDepenses, 0, ',', ' ') }} F</div>
+            </div>
+        @endunless
     </div>
 
     <div class="chart-panel" style="margin-bottom: 20px;">
